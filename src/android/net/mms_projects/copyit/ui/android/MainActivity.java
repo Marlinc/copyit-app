@@ -1,187 +1,309 @@
 package net.mms_projects.copyit.ui.android;
 
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.io.IOException;
+import java.util.Map;
 import java.util.UUID;
 
-import net.mms_projects.copyit.LoginResponse;
-import net.mms_projects.copyit.R;
-import net.mms_projects.copyit.ServerApi;
-import net.mms_projects.copyit.Settings;
-import net.mms_projects.copyit.app.AndroidApplication;
+import net.mms_projects.copy_it.R;
+import net.mms_projects.copyit.AndroidClipboardUtils;
+import net.mms_projects.copyit.ClipboardUtils;
+import net.mms_projects.copyit.FileStreamBuilder;
+import net.mms_projects.copyit.android.tasks.CheckUpdateTask;
+import net.mms_projects.copyit.android.tasks.CopyItTask;
+import net.mms_projects.copyit.android.tasks.PasteItTask;
+import net.mms_projects.copyit.android.tasks.SendToAppTask;
+import net.mms_projects.copyit.api.ServerApi;
 import net.mms_projects.copyit.app.CopyItAndroid;
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.util.Log;
-import android.view.Menu;
 import android.view.View;
-import android.widget.Toast;
 
-public class MainActivity extends Activity {
+import com.actionbarsherlock.app.SherlockFragmentActivity;
+import com.actionbarsherlock.view.Menu;
+import com.actionbarsherlock.view.MenuInflater;
+import com.actionbarsherlock.view.MenuItem;
+
+public class MainActivity extends SherlockFragmentActivity {
 
 	private CopyItAndroid app;
-	private Settings settings;
-	private ServerApi api;
-
-	private static final int ACTIVITY_LOGIN = 1;
-
-	public void setup(Settings settings, ServerApi api) {
-		this.settings = settings;
-		this.api = api;
-	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
 		this.app = new CopyItAndroid();
-		try {
-			FileOutputStream output = openFileOutput("settings",
-					Context.MODE_PRIVATE);
-			this.app.run(this, openFileInput("settings"), output);
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		try {
-			System.out.println(this.api.get());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		this.app.run(this);
 
 		setContentView(R.layout.activity_main);
+
+		// Show the Up button in the action bar.
+		getSupportActionBar();
+
+		SharedPreferences preferences = PreferenceManager
+				.getDefaultSharedPreferences(this);
+
+		if (!preferences.contains("device.id")) {
+			Intent intent = new Intent(this, WelcomeActivity.class);
+			startActivity(intent);
+		}
+
+		// Get intent, action and MIME type
+		Intent intent = getIntent();
+		String action = intent.getAction();
+		String type = intent.getType();
+
+		if (Intent.ACTION_SEND.equals(action) && type != null) {
+			if ("text/plain".equals(type)) {
+				handleSendText(intent); // Handle text being sent
+			}
+		}
+
+		ServerApi api = new ServerApi();
+		api.apiUrl = this.getResources().getString(R.string.jenkins_baseurl);
+
+		if (CopyItAndroid.getBuildNumber(this) != 0) {
+			CheckUpdateTask task = new CheckUpdateTask(this, api);
+			task.execute();
+		} else {
+			Log.i("update-check",
+					"Build number is 0. Not running Jenkins build. Ignoring update check!");
+		}
+	}
+
+	private void handleSendText(Intent intent) {
+		String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+		if (sharedText != null) {
+			SharedPreferences preferences = PreferenceManager
+					.getDefaultSharedPreferences(this);
+
+			Map<String, ?> settings = preferences.getAll();
+			for (String key : settings.keySet()) {
+				System.out.println(key + ": " + settings.get(key));
+			}
+
+			if (preferences.getString("device.id", null) == null) {
+				AlertDialog.Builder builder = new AlertDialog.Builder(this);
+				builder.setMessage(
+						this.getResources().getString(
+								R.string.text_login_question))
+						.setPositiveButton(
+								this.getResources().getString(
+										R.string.dialog_button_yes),
+								new MainActivity.LoginYesNoDialog())
+						.setNegativeButton(
+								this.getResources().getString(
+										R.string.dialog_button_no),
+								new MainActivity.LoginYesNoDialog()).show();
+				return;
+			}
+
+			ServerApi api = new ServerApi();
+			api.deviceId = UUID.fromString(preferences.getString("device.id",
+					null));
+			api.devicePassword = preferences.getString("device.password", null);
+			api.apiUrl = preferences.getString("server.baseurl", this
+					.getResources().getString(R.string.default_baseurl));
+
+			ClipboardUtils clipboard = new AndroidClipboardUtils(
+					MainActivity.this);
+
+			CopyItTask task = new HandleShareTask(this, api);
+			task.execute(clipboard.getText());
+		}
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.main, menu);
+		MenuInflater inflater = getSupportMenuInflater();
+		inflater.inflate(R.menu.main, menu);
 		return true;
 	}
 
-	public void copyIt(View view) {
-		try {
-			this.api.set(this.getClipboard());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		Intent intent = null;
+		switch (item.getItemId()) {
+		case R.id.action_settings:
+			intent = new Intent(this, SettingsActivity.class);
+			startActivity(intent);
+			return true;
+		case R.id.action_feedback:
+			intent = new Intent(this, DebugActivity.class);
+			intent.setAction(Intent.ACTION_SEND);
+			startActivity(intent);
+			return true;
+		default:
+			return super.onOptionsItemSelected(item);
 		}
+	}
+
+	public void copyIt(View view) {
+		SharedPreferences preferences = PreferenceManager
+				.getDefaultSharedPreferences(this);
+
+		Map<String, ?> settings = preferences.getAll();
+		for (String key : settings.keySet()) {
+			System.out.println(key + ": " + settings.get(key));
+		}
+
+		if (preferences.getString("device.id", null) == null) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(this);
+			builder.setMessage(
+					this.getResources().getString(R.string.text_login_question))
+					.setPositiveButton(
+							this.getResources().getString(
+									R.string.dialog_button_yes),
+							new MainActivity.LoginYesNoDialog())
+					.setNegativeButton(
+							this.getResources().getString(
+									R.string.dialog_button_no),
+							new MainActivity.LoginYesNoDialog()).show();
+			return;
+		}
+
+		ServerApi api = new ServerApi();
+		api.deviceId = UUID
+				.fromString(preferences.getString("device.id", null));
+		api.devicePassword = preferences.getString("device.password", null);
+		api.apiUrl = preferences.getString("server.baseurl", this
+				.getResources().getString(R.string.default_baseurl));
+
+		ClipboardUtils clipboard = new AndroidClipboardUtils(MainActivity.this);
+
+		CopyItTask task = new CopyItTask(this, api);
+		task.execute(clipboard.getText());
 	}
 
 	public void pasteIt(View view) {
-		try {
-			this.setClipboard(this.api.get());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		SharedPreferences preferences = PreferenceManager
+				.getDefaultSharedPreferences(this);
+		if (preferences.getString("device.id", null) == null) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(this);
+			builder.setMessage(
+					this.getResources().getString(R.string.text_login_question))
+					.setPositiveButton(
+							this.getResources().getString(
+									R.string.dialog_button_yes),
+							new MainActivity.LoginYesNoDialog())
+					.setNegativeButton(
+							this.getResources().getString(
+									R.string.dialog_button_no),
+							new MainActivity.LoginYesNoDialog()).show();
+			return;
 		}
+
+		ServerApi api = new ServerApi();
+		api.deviceId = UUID
+				.fromString(preferences.getString("device.id", null));
+		api.devicePassword = preferences.getString("device.password", null);
+		api.apiUrl = preferences.getString("server.baseurl", this
+				.getResources().getString(R.string.default_baseurl));
+
+		PasteItTask task = new PasteItTask(this, api);
+		task.execute();
 	}
 
-	public void login(View view) {
+	public void sendToApp(View view) {
+		SharedPreferences preferences = PreferenceManager
+				.getDefaultSharedPreferences(this);
+		if (preferences.getString("device.id", null) == null) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(this);
+			builder.setMessage(
+					this.getResources().getString(R.string.text_login_question))
+					.setPositiveButton(
+							this.getResources().getString(
+									R.string.dialog_button_yes),
+							new MainActivity.LoginYesNoDialog())
+					.setNegativeButton(
+							this.getResources().getString(
+									R.string.dialog_button_no),
+							new MainActivity.LoginYesNoDialog()).show();
+			return;
+		}
+
+		ServerApi api = new ServerApi();
+		api.deviceId = UUID
+				.fromString(preferences.getString("device.id", null));
+		api.devicePassword = preferences.getString("device.password", null);
+		api.apiUrl = preferences.getString("server.baseurl", this
+				.getResources().getString(R.string.default_baseurl));
+
+		SendToAppTask task = new SendToAppTask(this, api);
+		task.execute();
+	}
+
+	public void doLogin(View view) {
 		Intent intent = new Intent(this, LoginActivity.class);
-		startActivityForResult(intent, MainActivity.ACTIVITY_LOGIN);
+		startActivity(intent);
 	}
 
-	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		switch (requestCode) {
-		case MainActivity.ACTIVITY_LOGIN:
-			if (resultCode == RESULT_OK) {
-				LoginResponse response = new LoginResponse();
-				response.deviceId = UUID.fromString(data
-						.getStringExtra("device_id"));
-				response.devicePassword = data
-						.getStringExtra("device_password");
+	public void gotoSettings(View view) {
+		Intent intent = new Intent(this, SettingsActivity.class);
+		startActivity(intent);
+	}
 
-				try {
-					this.settings
-							.set("device.id", response.deviceId.toString());
-					this.settings.set("device.password",
-							response.devicePassword);
-					this.settings.saveProperties();
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+	public void gotoAbout(View view) {
+		Intent intent = new Intent(this, AboutActivity.class);
+		startActivity(intent);
+	}
 
-				this.api.deviceId = response.deviceId;
-				this.api.devicePassword = response.devicePassword;
+	class StreamBuilder extends FileStreamBuilder {
 
-				try {
-					InetAddress addr = InetAddress.getLocalHost();
-					String hostname = addr.getHostName();
+		private Activity activity;
 
-					this.api.initDevice(hostname);
-				} catch (UnknownHostException e) {
-					e.printStackTrace();
-				} catch (Exception e) {
-					AlertDialog alertDialog = new AlertDialog.Builder(this)
-							.create();
-					alertDialog.setTitle("Error");
-					alertDialog.setMessage("Could not setup the device: "
-							+ e.getMessage());
-					alertDialog.setButton(DialogInterface.BUTTON_POSITIVE,
-							"OK", new DialogInterface.OnClickListener() {
-								@Override
-								public void onClick(DialogInterface dialog,
-										int which) {
+		public StreamBuilder(Activity activity) {
+			this.activity = activity;
+		}
 
-								}
-							});
-					alertDialog.setIcon(R.drawable.ic_launcher);
-					alertDialog.show();
-				}
+		@Override
+		public FileInputStream getInputStream() throws IOException {
+			return this.activity.openFileInput("settings");
+		}
+
+		@Override
+		public FileOutputStream getOutputStream() throws IOException {
+			return this.activity.openFileOutput("settings",
+					Context.MODE_PRIVATE);
+		}
+
+	}
+
+	class LoginYesNoDialog implements DialogInterface.OnClickListener {
+		@Override
+		public void onClick(DialogInterface dialog, int which) {
+			switch (which) {
+			case DialogInterface.BUTTON_POSITIVE:
+				Intent intent = new Intent(MainActivity.this,
+						LoginActivity.class);
+				MainActivity.this.startActivity(intent);
+				break;
+
+			case DialogInterface.BUTTON_NEGATIVE:
+				MainActivity.this.finish();
 				break;
 			}
 		}
 	}
-	
-	@SuppressWarnings("deprecation")
-	protected void setClipboard(String text) {
-		int sdk = android.os.Build.VERSION.SDK_INT;
-		if(sdk < android.os.Build.VERSION_CODES.HONEYCOMB) {
-		    android.text.ClipboardManager clipboard = (android.text.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-		    clipboard.setText(text);
-		} else {
-		    this.setClipboardHoneycomb(text);
+
+	private class HandleShareTask extends CopyItTask {
+		public HandleShareTask(Context context, ServerApi api) {
+			super(context, api);
 		}
-	}
-	
-	@SuppressWarnings("deprecation")
-	protected String getClipboard() {
-		int sdk = android.os.Build.VERSION.SDK_INT;
-		if(sdk < android.os.Build.VERSION_CODES.HONEYCOMB) {
-		    android.text.ClipboardManager clipboard = (android.text.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-		    return clipboard.getText().toString();
-		} else {
-		    return this.getClipboardHoneycomb();
+
+		@Override
+		protected void onPostExecute(Boolean result) {
+			super.onPostExecute(result);
+
+			MainActivity.this.finish();
 		}
-	}
-	
-	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-	protected void setClipboardHoneycomb(String text) {
-		android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE); 
-	    android.content.ClipData clip = android.content.ClipData.newPlainText("text label", text);
-	    clipboard.setPrimaryClip(clip);
-	}
-	
-	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-	protected String getClipboardHoneycomb() {
-		android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE); 
-		android.content.ClipData clip = clipboard.getPrimaryClip();
-		return clip.getItemAt(0).getText().toString();
 	}
 }
