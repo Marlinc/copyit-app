@@ -1,18 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     
-    <!-- App instellingen -->
-    
-    
-    
-    <string name="action_settings">Instellingen</string>
+    <!-- Dashboard icons -->
+    <string name="dashboard_button_copyit">Copy It!</string>
+    <string name="dashboard_button_pasteit">Paste It!</string>
+    <string name="dashboard_button_sendtoapp">Delen</string>
+    <string name="dashboard_button_login">Inloggen</string>
+    <string name="dashboard_button_settings">Instellingen</string>
+    <string name="dashboard_button_about">Over</string>
+    <!-- Menu -->
+    <string name="menu_settings">@string/dashboard_button_settings</string>
+    <string name="menu_feedback">Feedback</string>
     <!-- Buttons -->
-    <string name="button_copyit">Copy It!</string>
-    <string name="button_pasteit">Paste It!</string>
-    <string name="button_login">Inloggen</string>
-    <string name="button_sendtoapp">Delen</string>
+    <string name="button_copyit">@string/dashboard_button_copyit</string>
+    <string name="button_pasteit">@string/dashboard_button_pasteit</string>
+    <string name="button_login">@string/dashboard_button_login</string>
     <!-- Preferenties -->
-    <string name="pref_about">Over</string>
+    <string name="pref_login">@string/dashboard_button_login</string>
+    <string name="pref_about">@string/dashboard_button_about</string>
     <!-- Activity titles -->
     <string name="title_activity_login">Inloggen</string>
     <string name="title_activity_welcome">Welkom in CopyIt</string>
@@ -22,7 +27,6 @@
     <string name="title_activity_debug">Copy It debug scherm</string>
     <!-- Other stuff -->
     <string name="text_welcome_message">Bedankt voor het downloaden van CopyIt. Om CopyIt te gebruiken moet je eerst inloggen.</string>
-    <string name="desc_app_icon_big">Groot CopyIt logo</string>
     <string name="text_logging_in">Inloggen&#8230;</string>
     <string name="text_login_successful">Succesvol ingelogt!</string>
     <string name="text_login_question">U bent niet ingelogt. Wilt u inloggen?</string>
@@ -30,6 +34,9 @@
     <string name="text_content_pulled">Volgende inhoud is ontvangen: \'%1$s\'</string>
     <string name="text_content_pulling">Pulling content&#8230;</string>
     <string name="text_content_pushing">Pushing content&#8230;</string>
+    <!-- Accessibility -->
+    <string name="accessibility_widget_button_app">Deze knop opent Copy It</string>
+    <string name="accessibility_app_icon_big">Big CopyIt logo</string>
     <!-- Dialog -->
     <string name="dialog_title_error">Fout</string>
     <string name="dialog_title_busy">Bezig</string>
@@ -53,12 +60,15 @@
     <string name="update_button_download">Download update</string>
     <!-- Debug info -->
     <string name="debug_label_server_baseurl">Server baseurl</string>
+    <string name="debug_label_jenkins_baseurl">Jenkins baseurl</string>
     <string name="debug_label_device_id">Toestel\'\ s id</string>
     <string name="debug_label_device_password">Toestel\'\ s wachtwoord</string>
     <string name="debug_label_build_number">Bouw nummer</string>
+    <string name="debug_label_screen_density">Scherm dichtheid</string>
     <string name="debug_no_value">Geen</string>
-    <!-- Other -->
-    <string name="action_settings">Instellingen</string>
-    <string name="hello_world">Hallo wereld!</string>
+    <string name="debug_unknown">Niet bekend</string>
+    <string name="debug_available">Beschikbaar</string>
+    <string name="debug_not_available">Niet beschikbaar</string>
+    <!-- App settings -->
     
 </resources>
