@@ -16,4 +16,13 @@
         android:onClick="openBrowserLogin"
         android:text="@string/button_login" />
 
+    <Button
+        android:id="@+id/button_google_login"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@+id/button_automatic_login"
+        android:onClick="openGoogleLogin"
+        android:text="Google login" />
+
 </RelativeLayout>

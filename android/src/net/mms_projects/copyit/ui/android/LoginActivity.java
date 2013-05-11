@@ -32,8 +32,8 @@ public class LoginActivity extends SherlockActivity {
 		// Show the Up button in the action bar.
 		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-		Intent intent = new Intent(this, BrowserLoginActivity.class);
-		startActivityForResult(intent, LoginActivity.ACTIVITY_LOGIN);
+		//Intent intent = new Intent(this, BrowserLoginActivity.class);
+		//startActivityForResult(intent, LoginActivity.ACTIVITY_LOGIN);
 	}
 
 	@Override
@@ -55,6 +55,13 @@ public class LoginActivity extends SherlockActivity {
 
 	public void openBrowserLogin(View view) {
 		Intent intent = new Intent(this, BrowserLoginActivity.class);
+		startActivityForResult(intent, LoginActivity.ACTIVITY_LOGIN);
+		finish();
+	}
+	
+	public void openGoogleLogin(View view) {
+		Intent intent = new Intent(this, GoogleLoginActivity.class);
+		//startActivity(intent);
 		startActivityForResult(intent, LoginActivity.ACTIVITY_LOGIN);
 		finish();
 	}

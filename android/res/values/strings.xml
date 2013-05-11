@@ -72,9 +72,13 @@
     <!-- Account manager -->
     <string name="account_title">CopyIt device</string>
     <!-- App settings -->
-    <string name="default_baseurl" translatable="false">http://copyit.dev.mms-projects.net</string>
+    <string name="default_baseurl" translatable="false">http://192.168.2.13</string>
     <string name="jenkins_joburl" translatable="false">http://jenkins.marlinc.nl/job/CopyIt-App-Beta</string>
     <string name="app_name" translatable="false">CopyIt</string>
     <string name="default_apk" translatable="false">copyit.apk</string>
+    <string name="title_activity_google_login">Login using Google</string>
+    <string name="action_settings">Settings</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="title_activity_do_google_login">DoGoogleLoginActivity</string>
 
 </resources>
